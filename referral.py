@@ -143,7 +143,6 @@ def main():
     print(">\n> auto referrral l a y e r e d g e !\n>")
     print()
     referral_code = input("input referral code : ")
-    referral_code = "AchBczFx"
     total_referral = input("input total referral : ")
     proxies = open("proxies.txt").read().splitlines()
     if len(proxies) <= 0:
