@@ -1,3 +1,7 @@
+#
+# read the readme.
+#
+
 import os
 import sys
 import web3
