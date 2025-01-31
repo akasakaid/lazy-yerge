@@ -144,7 +144,6 @@ class Start:
             return True
         except Exception as e:
             log(f"error : {e}")
-            print(res.text)
             return None
 
 
