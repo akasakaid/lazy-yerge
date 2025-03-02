@@ -29,6 +29,12 @@ def http(ses: requests.Session, url, data=None):
                 res = ses.post(url=url)
             else:
                 res = ses.post(url=url, data=data)
+            if (
+                not os.path.exists("http.log")
+                or os.path.getsize("http.log") / 1024 > 1024
+            ):
+                open("http.log", "w").write("")
+            open("http.log", "a").write(f"{res.status_code} {res.text}\n")
             if "<title>502 Bad Gateway</title>" in res.text:
                 log("error : 502 bad gateway !")
                 time.sleep(3)
@@ -50,7 +56,7 @@ def http(ses: requests.Session, url, data=None):
 
 class Start:
     def __init__(self, privatekey, proxy):
-        headers = {"user-agent": ua_generator.generate().text}
+        headers = {"user-agent": ua_generator.generate(device=("desktop")).text}
         proxy = {"http": proxy, "https": proxy}
         self.ses = requests.Session()
         self.ses.headers.update(headers)
@@ -69,7 +75,7 @@ class Start:
                     "host": f"referralapi.{self.hostname}",
                     "connection": "keep-alive",
                     "sec-ch-ua-platform": '"Windows"',
-                    "accept": "application/json, text/plain, */*",
+                    "accept": "*/*",
                     "content-type": "application/json",
                     "sec-ch-ua-mobile": "?0",
                     "origin": f"https://dashboard.{self.hostname}",
@@ -81,7 +87,7 @@ class Start:
                 }
             )
             log(f"wallet addr : {self.wallet.address}")
-            wallet_detail_url = f"https://referralapi.layeredge.io/api/referral/wallet-details/{self.wallet.address}"
+            wallet_detail_url = f"https://referralapi.{self.hostname}/api/referral/wallet-details/{self.wallet.address}"
             node_status_url = f"https://referralapi.{self.hostname}/api/light-node/node-status/{self.wallet.address}"
             daily_claim_url = (
                 f"https://referralapi.{self.hostname}/api/light-node/claim-node-points"
@@ -139,8 +145,41 @@ class Start:
                     log(f"http response : {res.text}")
                     return None
                 log("success start node !")
+            else:
+                log("node already started !")
+            proof_status_url = f"https://dashboard.{self.hostname}/api/proofs/status?address={self.wallet.address}"
+            self.ses.headers.update({"host": f"dashboard.{self.hostname}"})
+            res = http(ses=self.ses, url=proof_status_url)
+            if res.status_code != 200:
+                log("failed get proof status !")
+                return None
+            is_submit = res.json().get("hasSubmitted")
+            if is_submit:
+                log("already submit proof !")
                 return True
-            log("node already started !")
+            now = datetime.now().isoformat()
+            message = f"I am submitting a proof for LayerEdge at {now[:-3]}Z"
+            sign_message = encode_defunct(text=message)
+            signature = web3.Web3.to_hex(
+                web3.Account.sign_message(
+                    sign_message, private_key=self.wallet.key
+                ).signature
+            )
+            sendproof_url = f"https://dashboard.{self.hostname}/api/send-proof"
+            sendproof_data = {
+                "proof": "LayerEdge enhances zero-knowledge proofs (ZKPs) by optimizing scalability and efficiency. It enables off-chain computation with succinct validity proofs, reducing on-chain load. Using advanced cryptographic techniques, LayerEdge ensures privacy, security, and seamless integration for blockchain applications. #ZKProof #Blockchain",
+                "signature": signature,
+                "message": message,
+                "address": self.wallet.address,
+            }
+            res = http(ses=self.ses, url=sendproof_url, data=json.dumps(sendproof_data))
+            if res is None:
+                log("failed send proof data !")
+                return None
+            if not res.json().get("success"):
+                log("failed send proof data !")
+                return False
+            log("success send proof data !")
             return True
         except Exception as e:
             log(f"error : {e}")
