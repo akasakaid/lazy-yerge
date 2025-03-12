@@ -147,13 +147,12 @@ class Start:
                 log("success start node !")
             else:
                 log("node already started !")
-            proof_status_url = f"https://dashboard.{self.hostname}/api/proofs/status?address={self.wallet.address}"
-            self.ses.headers.update({"host": f"dashboard.{self.hostname}"})
+            proof_status_url = f"https://referralapi.{self.hostname}/api/card/proof-status/{self.wallet.address}"
             res = http(ses=self.ses, url=proof_status_url)
             if res.status_code != 200:
                 log("failed get proof status !")
-                return None
-            is_submit = res.json().get("hasSubmitted")
+                return False
+            is_submit = res.json().get("data", {}).get("hasSubmitted")
             if is_submit:
                 log("already submit proof !")
                 return True
@@ -165,17 +164,22 @@ class Start:
                     sign_message, private_key=self.wallet.key
                 ).signature
             )
-            sendproof_url = f"https://dashboard.{self.hostname}/api/send-proof"
+            sendproof_url = f"https://referralapi.{self.hostname}/api/card/submit-proof"
             sendproof_data = {
                 "proof": "LayerEdge enhances zero-knowledge proofs (ZKPs) by optimizing scalability and efficiency. It enables off-chain computation with succinct validity proofs, reducing on-chain load. Using advanced cryptographic techniques, LayerEdge ensures privacy, security, and seamless integration for blockchain applications. #ZKProof #Blockchain",
                 "signature": signature,
                 "message": message,
-                "address": self.wallet.address,
+                "walletAddress": self.wallet.address,
             }
+
             res = http(ses=self.ses, url=sendproof_url, data=json.dumps(sendproof_data))
             if res is None:
                 log("failed send proof data !")
                 return None
+            message = res.json().get("message")
+            if "queued" in message:
+                log("proof submitted but pending.")
+                return True
             if not res.json().get("success"):
                 log("failed send proof data !")
                 return False
