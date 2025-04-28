@@ -50,7 +50,7 @@ def http(ses: requests.Session, url, data=None):
             requests.exceptions.ReadTimeout,
             requests.exceptions.ProxyError,
         ):
-            log(f"connection error !")
+            log("connection error !")
             attemp += 1
 
 

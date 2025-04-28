@@ -21,6 +21,9 @@ def ipinfo(ses):
     try:
         res = http(ses=ses, url="https://api64.ipify.org")
         log(f"ip proxy : {res.text}")
+        return res.text
+    except KeyboardInterrupt:
+        sys.exit()
     except:
         log("ip proxy : None")
 
@@ -64,7 +67,10 @@ def http(ses: requests.Session, url, data=None):
 
 def lock(privatekey, proxy=None):
     ses = requests.Session()
+    ses.proxies.update({"http": proxy, "https": proxy})
     ip = ipinfo(ses=ses)
+    if ip is None:
+        return "bad_proxy"
     wallet = web3.Account.from_key(privatekey)
     address = wallet.address
     log(f"addr : {address}")
@@ -95,8 +101,13 @@ def lock(privatekey, proxy=None):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
     }
     ses.headers.update(headers)
-    ses.proxies.update({"http": proxy, "https": proxy})
     res = http(ses=ses, url=wallet_detail_url)
+    if res is None:
+        return "bad_proxy"
+    message = res.json().get('message')
+    if message == "user not found":
+        log("user not found ???")
+        return False
     userid = res.json().get("data", {}).get("id")
     poh_point = res.json().get("data", {}).get("pohPoints")
     if poh_point <= 0:
@@ -109,6 +120,8 @@ def lock(privatekey, proxy=None):
     data_lock["timestamp"] = str(timestamp_now)
     epoch_status_url = f"https://api.layeredge.io/api/epoch/epoch-stats/{userid}"
     res = http(ses=ses, url=epoch_status_url)
+    if res is None:
+        return "bad_proxy"
     total_point = res.json().get("data", {}).get("totalPoints")
     restake_point = res.json().get("data", {}).get("restakePoints")
     log(f"total point : {total_point}")
@@ -134,8 +147,11 @@ def lock(privatekey, proxy=None):
         "my-istri": "marinkitagawa",
     }
     ses2.headers.update(headers2)
+    ses2.proxies.update({"http":proxy,"https":proxy})
     try:
         res = http(ses=ses2, url="https://tempgooglev3.sdsproject.org/", data="")
+        if res is None:
+            return "bad_proxy"
         error = res.json().get("error")
         token = res.json().get("token")
     except:
@@ -148,6 +164,8 @@ def lock(privatekey, proxy=None):
     ses.headers.update({"Content-Type": "application/json"})
     # print(data)
     res = http(ses=ses, url=restake_url, data=json.dumps(data_lock))
+    if res is None:
+        return "bad_proxy"
     message = res.json().get("message")
     if message == "Previous Epoch Points restaked successfully":
         log("success stake point !")
@@ -165,7 +183,7 @@ def main():
 >
         """)
 
-    pks = open("privatekeys.txt").read().splitlines()
+    pks = open("privatekeys2.txt").read().splitlines()
     proxies = open("proxies.txt").read().splitlines()
     print(f"total privatekey : {len(pks)}")
     print(f"total proxy : {len(proxies)}")
@@ -176,10 +194,15 @@ def main():
     p = 0
     for pk in pks:
         print("~" * 50)
-        proxy = None if len(proxies) <= 0 else proxies[p % len(proxies)]
-        result = lock(privatekey=pk, proxy=proxy)
-        if result:
+        while True:
+            proxy = None if len(proxies) <= 0 else proxies[p % len(proxies)]
+            result = lock(privatekey=pk, proxy=proxy)
+            if result == "bad_proxy":
+                p += 1
+                continue
             p += 1
+            break
+
 
 
 
