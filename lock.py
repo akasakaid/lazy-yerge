@@ -149,7 +149,7 @@ def lock(privatekey, proxy=None):
     ses2.headers.update(headers2)
     ses2.proxies.update({"http":proxy,"https":proxy})
     try:
-        res = http(ses=ses2, url="https://tempgooglev3.sdsproject.org/", data="")
+        res = http(ses=ses2, url="https://sdsproject000.pythonanywhere.com/", data="")
         if res is None:
             return "bad_proxy"
         error = res.json().get("error")
